@@ -1,0 +1,70 @@
+version: "3.5"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "100m"
+    max-file: "3"
+
+services:
+  swag:
+    image: lscr.io/linuxserver/swag:latest
+    container_name: synergate_swag
+    logging: *default-logging
+    networks:
+      - synergate-network
+      - nginx-proxy-network
+    env_file:
+      - ./swag/.env
+    environment:
+      URL: ${SWAG_DOMAIN}
+      VALIDATION: http
+      ONLY_SUBDOMAINS: 'false'
+    volumes:
+      - ./swag/instance:/config:r
+#      - ./swag/nginx/default.conf:/config/nginx/site-confs/default.conf # uncomment after init swag
+    restart: unless-stopped
+
+  client:
+    container_name: synergate_client_prod
+    logging: *default-logging
+    build:
+      context: ./client
+      dockerfile: Dockerfile-prod
+    networks:
+      - synergate-network
+    environment:
+      PORT: 80
+      NODE_ENV: production
+    depends_on:
+      - api
+    tty: true
+    restart: "always"
+
+  api:
+    container_name: synergate_api_prod
+    logging: *default-logging
+    build:
+      context: ./server
+      dockerfile: Dockerfile-prod
+    environment:
+      HTTP_PORT: 4040
+      APP_GETAWAY_PORT: 4041
+      NODE_ENV: production
+      MEDIA_DIR: /home/app/data/media
+      BROADCAST_MEDIA_DIR: /home/app/data/broadcast-media
+    env_file:
+      - ./server/.env
+    networks:
+      - synergate-network
+    volumes:
+      - ./data:/home/app/data
+    tty: true
+    restart: "always"
+
+networks:
+  synergate-network:
+    driver: bridge
+  nginx-proxy-network:
+    external: true
+    name: 'nginx-proxy-network'
