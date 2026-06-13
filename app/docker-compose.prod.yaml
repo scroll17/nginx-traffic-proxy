@@ -21,7 +21,7 @@ services:
       VALIDATION: http
       ONLY_SUBDOMAINS: 'false'
     volumes:
-      - ./swag/instance:/config:r
+      - ./swag/instance:/config
 #      - ./swag/nginx/default.conf:/config/nginx/site-confs/default.conf # uncomment after init swag
     restart: unless-stopped
 

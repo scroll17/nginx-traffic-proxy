@@ -1,2 +1,6 @@
 # Env
 .env
+
+# SWAG runtime data: Let's Encrypt private keys, certs, logs, renewal state.
+# NEVER commit — these are live secrets.
+instance/
