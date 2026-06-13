@@ -97,6 +97,13 @@ services:
     image: redis:7.0.10-alpine
     container_name: synergate_redis_prod
     logging: *default-logging
+    # Require a password. Reachable via the mTLS gateway, so the shared client cert
+    # must NOT grant unauthenticated Redis (CONFIG/keys/etc). REDIS_PASSWORD comes
+    # from ./server/.env; $$ escapes compose interpolation so the shell expands it
+    # from the container env at runtime.
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes"]
+    env_file:
+      - ./server/.env               # must define REDIS_PASSWORD
     networks:
       - synergate-network            # internal only — no published port
     volumes:
