@@ -1,34 +1,74 @@
-version: "3.5"
-
 x-logging: &default-logging
   driver: "json-file"
   options:
     max-size: "100m"
     max-file: "3"
 
+# Shared definition for both interchangeable nginx backends. They are identical;
+# only the container_name differs. Neither publishes host ports — only HAProxy does.
+x-nginx-backend: &nginx-backend
+  image: nginx:1.27-alpine        # PINNED so a roll is predictable (no surprise :latest)
+  logging: *default-logging
+  networks:
+    - edge-network
+    - nginx-proxy-network
+  volumes:
+    - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    - ./nginx/domains/domains.map:/etc/nginx/domains.map:ro
+    - ./nginx/domains/db-domains.map:/etc/nginx/db-domains.map:ro
+    - ./nginx/domains/generate-maps.sh:/docker-entrypoint.d/10-generate-maps.sh:ro
+  # Graceful shutdown: SIGQUIT drains in-flight requests instead of cutting them.
+  stop_signal: SIGQUIT
+  stop_grace_period: 30s
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://127.0.0.1:81/healthz"]
+    interval: 5s
+    timeout: 3s
+    retries: 3
+    start_period: 5s
+  restart: always
+
 services:
-  nginx:
-    image: nginx:latest
-    container_name: nginx_proxy
+  # Stable L4 edge. Publishes the host ports; round-robins to the two backends.
+  haproxy:
+    image: haproxy:3.0-alpine     # PINNED (3.0 LTS)
+    container_name: nginx_lb
     logging: *default-logging
     ports:
       - "80:80"
       - "443:443"
       - "7443:7443"
-    networks:
-      - nginx-proxy-network
-    env_file:
-      - ./nginx/.env
     volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      # nginx image executes /docker-entrypoint.d/*.sh before launching nginx
-      - ./nginx/domains/domains.map:/etc/nginx/domains.map:ro
-      - ./nginx/domains/db-domains.map:/etc/nginx/db-domains.map:ro
-      - ./nginx/domains/generate-maps.sh:/docker-entrypoint.d/10-generate-maps.sh:ro
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    # Edge tier ONLY: HAProxy reaches the nginx backends, nothing else.
+    networks:
+      - edge-network
+    depends_on:
+      - nginx_blue
+      - nginx_green
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8404/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
     restart: always
 
+  nginx_blue:
+    <<: *nginx-backend
+    container_name: nginx_blue
+
+  nginx_green:
+    <<: *nginx-backend
+    container_name: nginx_green
+
 networks:
+  # Tier 1: HAProxy <-> nginx backends. Private to the front stack; apps never join it.
+  edge-network:
+    driver: bridge
+    name: 'edge-network'
+  # Tier 2: nginx backends <-> apps (swag/gateways). Apps attach as external.
   nginx-proxy-network:
     driver: bridge
     name: 'nginx-proxy-network'
