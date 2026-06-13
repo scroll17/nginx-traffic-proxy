@@ -62,6 +62,84 @@ services:
     tty: true
     restart: "always"
 
+  # ----------------------------------------------------------------------------
+  # Databases: NOT published to the host anymore.
+  # Before (insecure) we used to expose the port directly, e.g.:
+  #   ports:
+  #     - "5833:5432"   # <-- REMOVE: reachable from the whole internet
+  # Now access goes only through the TLS+mTLS gateways below, via the front proxy.
+  # ----------------------------------------------------------------------------
+  database:
+    image: postgres:16-alpine
+    container_name: synergate_database_prod
+    logging: *default-logging
+    env_file:
+      - ./server/.env
+    networks:
+      - synergate-network            # internal only — no nginx-proxy-network, no ports
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    restart: always
+
+  mongo:
+    image: mongo:7.0
+    container_name: synergate_mongo_db_prod
+    logging: *default-logging
+    env_file:
+      - ./server/.env               # expects MONGO_INITDB_ROOT_USERNAME / _PASSWORD
+    networks:
+      - synergate-network            # internal only — no published port
+    volumes:
+      - ./data/mongo:/data/db
+    restart: always
+
+  # --- TLS gateway for Postgres ---------------------------------------------
+  # The front proxy routes SNI `pg.synergate.space` here. ghostunnel terminates
+  # TLS, REQUIRES a client cert (mTLS, --allow-cn), then forwards plaintext to
+  # postgres:5432 over the internal docker network.
+  pg_gateway:
+    image: ghostunnel/ghostunnel:latest
+    container_name: synergate_pg_gateway
+    logging: *default-logging
+    command:
+      - server
+      - --listen=0.0.0.0:8443
+      - --target=database:5432
+      - --cert=/certs/server-cert.pem
+      - --key=/certs/server-key.pem
+      - --cacert=/certs/ca.pem
+      - --allow-cn=db-client
+    volumes:
+      - ./db-gateway/certs:/certs:ro
+    networks:
+      - synergate-network            # to reach `database`
+      - nginx-proxy-network          # so the front proxy can reach this gateway
+    depends_on:
+      - database
+    restart: unless-stopped
+
+  # --- TLS gateway for MongoDB ----------------------------------------------
+  mongo_gateway:
+    image: ghostunnel/ghostunnel:latest
+    container_name: synergate_mongo_gateway
+    logging: *default-logging
+    command:
+      - server
+      - --listen=0.0.0.0:8443
+      - --target=mongo:27017
+      - --cert=/certs/server-cert.pem
+      - --key=/certs/server-key.pem
+      - --cacert=/certs/ca.pem
+      - --allow-cn=db-client
+    volumes:
+      - ./db-gateway/certs:/certs:ro
+    networks:
+      - synergate-network            # to reach `mongo`
+      - nginx-proxy-network          # so the front proxy can reach this gateway
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
 networks:
   synergate-network:
     driver: bridge
