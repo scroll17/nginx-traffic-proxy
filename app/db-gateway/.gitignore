@@ -1,0 +1,8 @@
+# Never commit private keys / certs
+certs/
+client/
+*.pem
+*.srl
+
+# Local config (real domains/CN) — keep the .sample only
+.env
