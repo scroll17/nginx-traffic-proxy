@@ -1,9 +1,16 @@
 version: "3.5"
 
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "100m"
+    max-file: "3"
+
 services:
   nginx:
     image: nginx:latest
     container_name: nginx_proxy
+    logging: *default-logging
     ports:
       - "80:80"
       - "443:443"
