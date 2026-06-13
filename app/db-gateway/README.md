@@ -16,11 +16,13 @@ Point the DB subdomains at the server (same IP as the apps):
 ```
 pg.synergate.space     A   195.189.226.50
 mongo.synergate.space  A   195.189.226.50
+redis.synergate.space  A   195.189.226.50
 ```
 
-These are routed in the front proxy's `nginx/nginx.conf` (`$db_backend` map) — add a
-line there for every new DB subdomain. **No HTTP/ACME cert is needed** for them: TLS
-is terminated by the gateway with the private CA below, not by Let's Encrypt.
+These are routed by the front proxy via `nginx/domains/db-domains.map` (which
+generates the `$db_backend` map) — add a line there for every new DB subdomain.
+**No HTTP/ACME cert is needed** for them: TLS is terminated by the gateway with the
+private CA below, not by Let's Encrypt.
 
 ## 2. Generate certs (once, on the server)
 

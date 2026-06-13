@@ -93,6 +93,16 @@ services:
       - ./data/mongo:/data/db
     restart: always
 
+  redis:
+    image: redis:7.0.10-alpine
+    container_name: synergate_redis_prod
+    logging: *default-logging
+    networks:
+      - synergate-network            # internal only — no published port
+    volumes:
+      - ./data/redis:/data
+    restart: always
+
   # --- TLS gateway for Postgres ---------------------------------------------
   # The front proxy routes SNI `pg.synergate.space` here. ghostunnel terminates
   # TLS, REQUIRES a client cert (mTLS, --allow-cn), then forwards plaintext to
@@ -138,6 +148,28 @@ services:
       - nginx-proxy-network          # so the front proxy can reach this gateway
     depends_on:
       - mongo
+    restart: unless-stopped
+
+  # --- TLS gateway for Redis ------------------------------------------------
+  redis_gateway:
+    image: ghostunnel/ghostunnel:latest
+    container_name: synergate_redis_gateway
+    logging: *default-logging
+    command:
+      - server
+      - --listen=0.0.0.0:8443
+      - --target=redis:6379
+      - --cert=/certs/server-cert.pem
+      - --key=/certs/server-key.pem
+      - --cacert=/certs/ca.pem
+      - --allow-cn=db-client
+    volumes:
+      - ./db-gateway/certs:/certs:ro
+    networks:
+      - synergate-network            # to reach `redis`
+      - nginx-proxy-network          # so the front proxy can reach this gateway
+    depends_on:
+      - redis
     restart: unless-stopped
 
 networks:

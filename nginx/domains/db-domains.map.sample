@@ -17,3 +17,4 @@
 
 mongo.example.com   myapp_mongo_gateway
 pg.example.com      myapp_pg_gateway
+redis.example.com   myapp_redis_gateway
