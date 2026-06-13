@@ -17,6 +17,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       # nginx image executes /docker-entrypoint.d/*.sh before launching nginx
       - ./nginx/domains/domains.map:/etc/nginx/domains.map:ro
+      - ./nginx/domains/db-domains.map:/etc/nginx/db-domains.map:ro
       - ./nginx/domains/generate-maps.sh:/docker-entrypoint.d/10-generate-maps.sh:ro
     restart: always
 

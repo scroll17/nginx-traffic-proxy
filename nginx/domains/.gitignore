@@ -1,5 +1,7 @@
-# Real domain list is environment-specific / sensitive — keep it out of git.
+# Real domain lists are environment-specific / sensitive — keep them out of git.
 domains.map
+db-domains.map
 
-# ...but always track the example.
+# ...but always track the examples.
 !domains.map.sample
+!db-domains.map.sample

@@ -1,0 +1,19 @@
+# =============================================================================
+# SINGLE SOURCE OF TRUTH for DB access subdomains (:7443 SNI -> TLS gateway).
+#
+# This is the EXAMPLE file. Copy it to db-domains.map and fill in real values:
+#     cp nginx/domains/db-domains.map.sample nginx/domains/db-domains.map
+# db-domains.map itself is gitignored.
+#
+# Format:   <db_subdomain>   <gateway_container>
+# The gateway port is fixed at :8443 (ghostunnel --listen 0.0.0.0:8443), so put
+# only the container name here. Blank lines and lines starting with # are ignored.
+#
+# generate-maps.sh builds /etc/nginx/generated/stream_db_backend.map from this,
+# which nginx.conf includes as: map $ssl_preread_server_name $db_backend { ... }
+#
+# Add/remove a DB endpoint HERE ONLY, then regenerate + reload (`make domains`).
+# =============================================================================
+
+mongo.example.com   myapp_mongo_gateway
+pg.example.com      myapp_pg_gateway
