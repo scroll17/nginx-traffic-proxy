@@ -1,0 +1,23 @@
+# =============================================================================
+# SINGLE SOURCE OF TRUTH for all proxied web domains.
+#
+# This is the EXAMPLE file. Copy it to domains.map and fill in real values:
+#     cp nginx/domains/domains.map.sample nginx/domains/domains.map
+# domains.map itself is gitignored (it holds the real domain list).
+#
+# Format:   <domain>   <swag_container>
+# One line per hostname. Blank lines and lines starting with # are ignored.
+#
+# From this file generate-maps.sh builds BOTH nginx maps at container start:
+#   - http   :80   map $host                    -> $proxy_upstream  (default.conf)
+#   - stream :443  map $ssl_preread_server_name -> $backend_name    (nginx.conf)
+#
+# Add/remove a domain in domains.map ONLY, then regenerate + reload (`make domains`).
+# =============================================================================
+
+example.com             example_swag
+www.example.com         example_swag
+
+# A domain with extra subdomains pointing at the same backend:
+app.example.org         myapp_swag
+admin.example.org       myapp_swag

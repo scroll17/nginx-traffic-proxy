@@ -1,0 +1,5 @@
+# Real domain list is environment-specific / sensitive — keep it out of git.
+domains.map
+
+# ...but always track the example.
+!domains.map.sample
